@@ -8,15 +8,33 @@ let isConnect = false;
 // 基础的数据表
 const databseTable = [
     {
-        name: 'language',
-        // 结构化定义列信息：name, type, constraints, defaultValue
+        // 功能使用记录，用于最近使用
+        name: 'recently',
         columns: [
             { name: 'id', type: 'INTEGER', primaryKey: true, autoIncrement: true, notNull: true },
-            { name: 'title', type: 'TEXT', notNull: true },
-            { name: 'languageText', type: 'TEXT', notNull: true },
-            { name: 'voice', type: 'TEXT', notNull: true },
-            { name: 'lastViewId', type: 'INTEGER', defaultValue: 0 },
-            { name: 'createTime', type: 'TEXT', defaultValue: "datetime('now', 'localtime')" },
+            // 功能ID
+            { name: 'capabilityID', type: 'INTEGER', notNull: true },
+            { name: 'createTime', type: 'TEXT', defaultValue: "datetime('now', 'localtime')" }
+        ]
+    },{
+        // 功能收藏
+        name: 'star',
+        columns: [
+            { name: 'id', type: 'INTEGER', primaryKey: true, autoIncrement: true, notNull: true },
+            // 功能ID
+            { name: 'capabilityID', type: 'INTEGER', notNull: true },
+            { name: 'createTime', type: 'TEXT', defaultValue: "datetime('now', 'localtime')" }
+        ]
+    },{
+        // 快捷键
+        name: 'shortcut',
+        columns: [
+            { name: 'id', type: 'INTEGER', primaryKey: true, autoIncrement: true, notNull: true },
+            // 功能ID
+            { name: 'capabilityID', type: 'INTEGER', notNull: true, unique: true },
+            // 快捷键
+            { name: 'key', type: 'TEXT', notNull: true, unique: true },
+            { name: 'createTime', type: 'TEXT', defaultValue: "datetime('now', 'localtime')" }
         ]
     }
 ];
@@ -32,6 +50,7 @@ function generateCreateSql(tableDef) {
         if (col.notNull) sql += ' NOT NULL';
         if (col.primaryKey) sql += ' PRIMARY KEY';
         if (col.autoIncrement) sql += ' AUTOINCREMENT';
+        if (col.unique) sql += ' UNIQUE';
         if (col.defaultValue !== undefined) sql += ` DEFAULT (${col.defaultValue})`;
         return sql;
     }).join(',\n\t\t\t');

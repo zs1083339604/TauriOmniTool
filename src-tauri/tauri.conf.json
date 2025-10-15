@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "tauriomnitool",
-        "width": 800,
-        "height": 600
+        "title": "电脑小工具箱-TauriOmniTool",
+        "width": 1280,
+        "height": 720,
+        "minWidth": 1024,
+        "minHeight": 576
       }
     ],
     "security": {

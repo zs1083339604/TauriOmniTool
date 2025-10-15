@@ -1,13 +1,27 @@
 <script setup>
-import { ref, onUnmounted } from "vue";
+import { ref, onUnmounted, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { register, unregister } from '@tauri-apps/plugin-global-shortcut';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 // import { writeLog, attachConsole } from './utils/log'
 import { attachConsole } from "@tauri-apps/plugin-log";
 import { connect } from './utils/sqlite'
+import { formatObjectString } from './utils/function'
+import {
+  House,
+  Menu as IconMenu,
+  Setting,
+} from '@element-plus/icons-vue'
+import { RouterView } from "vue-router";
+import { useCapabilityStore } from "./stores/capability";
+import mitter from './utils/mitt';
+import { useRouter } from "vue-router";
+import { useShortcutStore } from "./stores/shortcut";
 
+const capabilityStore = useCapabilityStore();
+const shortcutStore = useShortcutStore();
+
+const router = useRouter();
 const currentWindow = getCurrentWindow();
 const isInit = ref(false);
 
@@ -16,15 +30,16 @@ attachConsole();
 
 // 初始化SQL数据库
 connect().then(()=>{
-  console.log("程序初始化完成")
+  // 打包时注释
+  return capabilityStore.checkDuplicateIds();
+  return Promise.resolve();
+}).then(()=>{
+  return shortcutStore.init();
+}).then(()=>{
+  console.log("程序初始化完成");
   isInit.value = true;
 }).catch((error)=>{
-  let msg = error;
-  if(typeof msg == 'object'){
-    msg = JSON.stringify(msg);
-  }
-
-  ElMessageBox.alert(msg, '程序初始化失败', {
+  ElMessageBox.alert(formatObjectString(error), '程序初始化失败', {
     confirmButtonText: '确定',
     callback: (action) => {
       currentWindow.close();
@@ -32,61 +47,63 @@ connect().then(()=>{
   });
 })
 
-// register('CommandOrControl+Shift+C', (event) => {
-//   if (event.state === "Pressed") {
-//     console.log('Shortcut triggered');
-//     currentWindow.setFocus().catch((error)=>{
-//       console.log(error, "setfocus error")
-//     })
-//   }
-// }).then(()=>{
-//   console.log("success")
-// }).catch((error)=>{
-//   console.log("error " ,error)
-// })
-// console.log("aaaaaa")
-// onUnmounted(()=>{
-//   unregister('CommandOrControl+Shift+C').then(()=>{
-//     console.log("unregister success")
-//   }).catch((error)=>{
-//     console.log("unregister error ", error)
-//   })
-// })
+watch(isInit, (val)=>{
+  if(val){
+    // 页面加载完成，绑定快捷键，因为快捷键绑定失败，不影响程序运行，所以不放在上面
+    shortcutStore.bind().then((result)=>{
+      if(result.length > 0){
+        // 如果有错误
+        ElMessage.warning({
+            dangerouslyUseHTMLString: true,
+            message: `以下快捷键绑定失败，可能与其他软件冲突：<br />${result.join('<br />')}`
+        })
+      }
+    }).catch((error)=>{
+      ElMessage.warning(error);
+    })
+  }
+})
 
-const greetMsg = ref("");
-const name = ref("");
+// 页面跳转
+mitter.on("capabilitySkip", (data) => {
+  router.push('/use/' + data.id + '?shortcut=' + (data.shortcut ? 'true' : 'false'));
+})
 
-async function greet() {
-  // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-  greetMsg.value = await invoke("greet", { name: name.value });
-}
+onUnmounted(()=>{
+  mitter.off("capabilitySkip");
+})
 </script>
 
 <template>
-  <main class="container" v-if="isInit">
-    <h1>Welcome to Tauri + Vue</h1>
-
-    <div class="row">
-      <a href="https://vite.dev" target="_blank">
-        <img src="/vite.svg" class="logo vite" alt="Vite logo" />
-      </a>
-      <a href="https://tauri.app" target="_blank">
-        <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
-      </a>
-      <a href="https://vuejs.org/" target="_blank">
-        <img src="./assets/vue.svg" class="logo vue" alt="Vue logo" />
-      </a>
-    </div>
-    <p>Click on the Tauri, Vite, and Vue logos to learn more.</p>
-
-    <form class="row" @submit.prevent="greet">
-      <input id="greet-input" v-model="name" placeholder="Enter a name..." />
-      <button type="submit">Greet</button>
-    </form>
-    <p>{{ greetMsg }}</p>
-  </main>
+  <div class="common-layout" v-if="isInit">
+    <el-container class="container">
+      <el-aside width="200px">
+        <el-menu class="app-menu" default-active="home" :router="true">
+          <el-menu-item index="/home">
+            <el-icon><house /></el-icon>
+            <span>首页</span>
+          </el-menu-item>
+          <el-menu-item index="/capabilities">
+            <el-icon><icon-menu /></el-icon>
+            <span>功能库</span>
+          </el-menu-item>
+          <el-menu-item index="/setting">
+            <el-icon><setting /></el-icon>
+            <span>通用设置</span>
+          </el-menu-item>
+        </el-menu>
+      </el-aside>
+      <el-container>
+        <el-main> <RouterView /> </el-main>
+      </el-container>
+    </el-container>
+  </div>
 </template>
 
 <style scoped>
-
+  .common-layout,
+  .container,
+  .app-menu{
+    height: 100%;
+  }
 </style>

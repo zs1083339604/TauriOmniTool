@@ -44,7 +44,7 @@ function formatObjectString(...args) {
         return String(item);
     });
 
-    // 使用空格连接所有部分（更通用和可读）
+    // 使用空格连接所有部分
     return formattedParts.join(' ');
 }
 

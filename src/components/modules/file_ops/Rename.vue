@@ -1,0 +1,30 @@
+<script setup lang="ts">
+    import { ref } from 'vue';
+
+    // 定义 props
+    const props = defineProps({
+        capabilityId: {
+            type: Number,
+            required: true
+        },
+        shortcut: {
+            type: Boolean,
+            default: false
+        }
+    })
+
+    // 使用参数
+    console.log('组件接收到的参数:')
+    console.log('能力项:', props.capabilityId)
+    console.log('快捷模式:', props.shortcut)
+</script>
+
+<template>
+    <div class="rename-box">
+        bbbb
+    </div>
+</template>
+
+<style scoped>
+    
+</style>
