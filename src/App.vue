@@ -78,7 +78,7 @@ onUnmounted(()=>{
   <div class="common-layout" v-if="isInit">
     <el-container class="container">
       <el-aside width="200px">
-        <el-menu class="app-menu" default-active="home" :router="true">
+        <el-menu class="app-menu" default-active="/home" :router="true">
           <el-menu-item index="/home">
             <el-icon><house /></el-icon>
             <span>首页</span>

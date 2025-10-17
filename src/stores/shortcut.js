@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { select, insert, update } from '../utils/sqlite'
+import { select, insert, update, deleteData } from '../utils/sqlite'
 import { error as errorLog, warn } from "@tauri-apps/plugin-log";
 import { formatObjectString } from '../utils/function'
 import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut';
@@ -94,7 +94,6 @@ export const useShortcutStore = defineStore("shortcut", {
                     if(findIndex >= 0){
                         // 如果有绑定的快捷键，判断是否绑定成功了
                         const findItem = this.list[findIndex];
-                        console.log(findItem);
                         if(findItem.bindSuccess){
                             // 绑定成功就解绑
                             await unregister(findItem.key);
@@ -119,6 +118,38 @@ export const useShortcutStore = defineStore("shortcut", {
                 }
                 
             })
+        },
+        /**
+         * 解除快捷键绑定
+         * @param {Number} capabilityId 功能id
+         */
+        unlock(capabilityId){
+            return new Promise(async (resolve, reject) => {
+                const item = this.getKeyByCapabilityId(capabilityId);
+                if(!item){
+                    reject("该功能未绑定快捷键");
+                    return;
+                }
+
+                try {
+                    if(item.bindSuccess){
+                        // 绑定成功就解绑
+                        await unregister(item.key);
+                    }
+
+                    // 解绑成功，从数据库中删除
+                    await deleteData("shortcut", "id = ?", [item.id]);
+                    // 删除成功后从Store中删除
+                    const findIndex = this.list.findIndex(n => n.id == item.id);
+                    this.list.splice(findIndex, 1);
+                    resolve();
+                } catch (error) {
+                    const info = formatObjectString("解绑快捷键失败：", error);
+                    warn(info);
+                    reject(info);
+                }
+                
+            });
         },
         /**
          * 根据功能ID 获取快捷键

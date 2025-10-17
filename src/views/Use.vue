@@ -8,6 +8,7 @@
     import ShortcutCapture from '../components/common/Shortcut.vue'
     import { ElMessage } from 'element-plus'
     import { useShortcutStore } from '../stores/shortcut'
+    import Fileselect from '../components/common/Fileselect.vue'
     
     const route = useRoute()
     const router = useRouter();
@@ -88,9 +89,11 @@
             .join(' + ')
     }
 
+    // 绑定快捷键
     const handleShortcutCaptured = (shortcut) => {
         if(currentCapability.value){
             shortcutStore.add(shortcut, currentCapability.value.id).then(()=>{
+                currentShortcut.value = shortcutStore.getKeyByCapabilityId(currentCapability.value.id);
                 ElMessage.success("绑定成功")
             }).catch((error)=>{
                 ElMessage.warning(error);
@@ -98,8 +101,16 @@
         }
     }
 
-    const handleCaptureCancel = () => {
-        ElMessage.info('已取消快捷键设置')
+    // 解除快捷键绑定
+    const unlockShortcut = ()=>{
+        if(currentCapability.value){
+            shortcutStore.unlock(currentCapability.value.id).then(()=>{
+                currentShortcut.value = null;
+                ElMessage.success("解绑成功")
+            }).catch((error)=>{
+                ElMessage.warning(error);
+            })
+        }
     }
 </script>
 
@@ -124,6 +135,7 @@
                             type="warning"
                             :icon="Unlock"
                             circle
+                            @click="unlockShortcut"
                         ></el-button>
                     </el-tooltip>
                 </template>
@@ -159,11 +171,13 @@
             </div>
         </div>
 
+        <Fileselect />
+
         <ShortcutCapture
             ref="shortcutCaptureRef"
             @shortcut-captured="handleShortcutCaptured"
-            @cancel="handleCaptureCancel"
         />
+        
         <div v-if="loading" class="loading">加载中...</div>
         <div v-else-if="error" class="error">加载组件时出错: {{ error }}</div>
         <component 
