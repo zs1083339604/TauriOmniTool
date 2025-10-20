@@ -48,6 +48,33 @@ function formatObjectString(...args) {
     return formattedParts.join(' ');
 }
 
+/**
+ * 获取当前时间字符串
+ * @returns {string} 2025-10-15 11:00:00 的时间字符串
+ */
+function getCurrentDateTime() {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+
+/**
+ * 提取Windows的文件名称
+ * @param {String} path Windows下文件的完整路径 \\
+ * @returns {String} 提取好的文件名 如果失败返回完整路径
+ */
+function getFileNameByWindows (path){
+    return path.split(/[\\/]/).pop() || path
+}
+
 export {
-    formatObjectString
+    formatObjectString, getCurrentDateTime, getFileNameByWindows
 }

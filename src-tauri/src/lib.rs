@@ -3,7 +3,7 @@ use tauri::Manager;
 // 引入日志文件
 use tauri_plugin_log::{Target, TargetKind};
 mod utils;
-use utils::api::{files_or_directory};
+use utils::api::{files_or_directory, get_active_explorer_select_files};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -13,6 +13,7 @@ fn greet(name: &str) -> String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(debug_assertions)] // 仅在调试(debug)版本中包含此代码
@@ -38,7 +39,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         // SQL
         .plugin(tauri_plugin_sql::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![greet, files_or_directory])
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            files_or_directory,
+            get_active_explorer_select_files
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

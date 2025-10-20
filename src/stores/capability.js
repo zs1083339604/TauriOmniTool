@@ -1,11 +1,30 @@
 import { defineStore } from 'pinia';
 import { toRaw } from 'vue';
-import { selectCustom } from '@/utils/sqlite'
+import { selectCustom, select, insert, update, deleteData } from '../utils/sqlite'
 import { warn } from '@tauri-apps/plugin-log';
-import { formatObjectString } from '@/utils/function'
+import { formatObjectString, getCurrentDateTime } from '../utils/function'
 
 export const useCapabilityStore = defineStore('capability', {
     actions: {
+        init(){
+            return new Promise((resolve, reject) => {
+                select("star", ['*']).then((result)=>{
+                    this.starList.length = 0;
+                    result.rows.forEach(item => {
+                        this.starList.push(item);
+                    })
+                    // 打包时注释
+                    return this.checkDuplicateIds();
+                    return Promise.resolve();
+                }).then(()=>{
+                    resolve();
+                }).catch((error)=>{
+                    const errorInfo = formatObjectString(error);
+                    reject(errorInfo);
+                    warn(`获取所有收藏功能失败：${errorInfo}`);
+                })
+            })
+        },
         /**
          * 检查ID是否有重复
          * @returns Promise
@@ -187,34 +206,123 @@ export const useCapabilityStore = defineStore('capability', {
             return tempArray.slice(0, count);
         },
         /**
-         * 获取功能（按收藏 或 最近使用）
+         * 获取收藏的功能
+         * @param {Number} count 数量
+         * @returns Array 收藏的列表
+         */
+        getCapabilityByStar(count = 10){
+            let tempArray = [];
+            const newStarList = this.starList.slice(0, count);
+            newStarList.forEach(item => {
+                const findCapability = this.getCapabilityById(item.capabilityID);
+                if(findCapability != undefined){
+                    tempArray.push({...findCapability});
+                }else{
+                    warn(`数据库ID： '${item.capabilityID}' 在Store中未查到`);
+                }
+            });
+
+            return tempArray;
+        },
+        /**
+         * 获取最近使用的功能
          * @param {Number} count 要获取的数量
-         * @param {String} type star是按收藏，recently是按使用
          * @returns Array
          */
-        getCapabilityByStarOrRecently(count = 10, type = 'star'){
+        getCapabilityByRecently(count = 10){
             return new Promise((resolve, reject) => {
                 let tempArray = [];
-                selectCustom(`SELECT capabilityID FROM ${type} ORDER BY createTime DESC LIMIT 0,$1;`, [count]).then((result)=>{
+                selectCustom(`SELECT capabilityID FROM recently ORDER BY createTime DESC LIMIT 0,$1;`, [count]).then((result)=>{
                     result.rows.forEach(item => {
                         const findCapability = this.getCapabilityById(item.capabilityID);
                         if(findCapability != undefined){
                             tempArray.push({...findCapability});
                         }else{
-                            warn(`[getCapabilityByStarOrRecently] 数据库ID： '${item.capabilityID}' 在Store中未查到`);
+                            warn(`[getCapabilityByRecently] 数据库ID： '${item.capabilityID}' 在Store中未查到`);
                         }
                     })
                     resolve(tempArray);
                 }).catch((error)=>{
                     const errorInfo = formatObjectString(error);
                     reject(errorInfo);
-                    warn(`[getCapabilityByStarOrRecently] 自定义查询语句失败：${errorInfo}`);
+                    warn(`[getCapabilityByRecently] 自定义查询语句失败：${errorInfo}`);
                 })
             })
+        },
+        /**
+         * 将功能ID添加到最近使用
+         * @param {Number} id 功能id
+         */
+        addCapabilityByRecently(id){
+            return new Promise((resolve, reject) => {
+                // 查询是否有该条消息了
+                select('recently', ['id'], 'capabilityID = ?', [id]).then((result)=>{
+                    // 判断是否存在
+                    if(result.rows.length > 0){
+                        // 存在
+                        return update('recently', {capabilityID: id, createTime: getCurrentDateTime()}, "id = ?", [result.rows[0].id]);
+                    }else{
+                        // 不存在
+                        return insert('recently', ['capabilityID'], [id]);
+                    }
+                }).then(()=>{
+                    resolve();
+                }).catch((error)=>{
+                    const errorInfo = formatObjectString(error);
+                    reject(errorInfo);
+                    warn(`添加功能ID添加到最近使用失败：${errorInfo}`);
+                })
+            });
+        },
+        /**
+         * 传入一个功能id，判断是不是已收藏的
+         * @param {Number} id 
+         * @returns Boolean 是否是收藏
+         */
+        isStarByCapabilityID(id){
+            const findIndex = this.starList.findIndex(n => n.capabilityID == id);
+            return findIndex != -1;
+        },
+        /**
+         * 切换一个功能的收藏状态（非收藏->收藏 收藏->非收藏）
+         * @param {Number} id 功能id
+         * @returns String 添加或取消成功的提示
+         */
+        switchCapabilityStarTypeById(id){
+            return new Promise(async (resolve, reject) => {
+                const itemIndex = this.starList.findIndex(n => n.capabilityID == id);
+
+                try {
+                    let resultMsg = "收藏成功";
+                    if(itemIndex != -1){
+                        const findItem = this.starList[itemIndex];
+                        // 存在则取消收藏
+                        await deleteData('star', "id = ?", [findItem.id]);
+                        this.starList.splice(itemIndex,1);
+                        resultMsg = "取消收藏成功"
+                    }else{
+                        // 不存在则添加收藏
+                        const result = await insert('star', ['capabilityID'], [id]);
+                        this.starList.push({
+                            id: result.lastId,
+                            capabilityID: id,
+                            createTime: getCurrentDateTime()
+                        });
+                    }
+                    resolve(resultMsg);
+                } catch (error) {
+                    const errorInfo = formatObjectString(error);
+                    reject(errorInfo);
+                    warn(`切换收藏状态失败：${errorInfo}`);
+                }
+            })
+            
         }
     },
     state() {
         return {
+            // 所有收藏功能的id
+            starList: [],
             /**
              * 分类的背景颜色
              * next: 2
@@ -246,6 +354,14 @@ export const useCapabilityStore = defineStore('capability', {
                     time: '2025-10-09 13:00:00',
                     // 该功能是否有单独的设置权限
                     showSetting: false,
+                    // 该功能允许选择的数据：file 文件 directory 文件夹
+                    selectData: 'file',
+                    // 允许的文件扩展名，仅selectData=file时有效
+                    allowedExtensions: '*',
+                    // 是否允许多选文件或文件夹
+                    multiple: true,
+                    // 最大文件或文件夹数据，0表示无限制
+                    maxFiles: 0,
                     // 功能的vue组件位置，@/components/modules 下
                     component: 'file_ops/Rename.vue'
                 }]

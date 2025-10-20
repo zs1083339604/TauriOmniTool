@@ -1,7 +1,7 @@
 <script setup lang="ts">
     import { ref } from 'vue';
     import { Search } from '@element-plus/icons-vue'
-    import { useCapabilityStore } from '@/stores/capability';
+    import { useCapabilityStore } from '../stores/capability';
     import { ElMessage } from 'element-plus';
     import mitter from '@/utils/mitt'
 
@@ -15,16 +15,18 @@
     // 最近使用的列表
     const recentlyList = ref([]);
 
+    // 获取最近添加
     capabilityStore.getCapabilityByLastAdd().forEach(item => {
         lastAddList.value.push(item);
     })
 
-    capabilityStore.getCapabilityByStarOrRecently().then((result)=>{
-        result.forEach(item => {
-            starList.value.push(item)
-        });
-        return capabilityStore.getCapabilityByStarOrRecently(10, 'recently');
-    }).then((result)=>{
+    // 获取收藏
+    capabilityStore.getCapabilityByStar(10).forEach(item => {
+        starList.value.push(item);
+    })
+
+    // 获取最近访问
+    capabilityStore.getCapabilityByRecently(10).then((result)=>{
         result.forEach(item => {
             recentlyList.value.push(item)
         });

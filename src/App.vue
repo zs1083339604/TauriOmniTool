@@ -30,9 +30,7 @@ attachConsole();
 
 // 初始化SQL数据库
 connect().then(()=>{
-  // 打包时注释
-  return capabilityStore.checkDuplicateIds();
-  return Promise.resolve();
+  return capabilityStore.init();
 }).then(()=>{
   return shortcutStore.init();
 }).then(()=>{

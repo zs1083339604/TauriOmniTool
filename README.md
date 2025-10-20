@@ -14,7 +14,8 @@ TauriOmniTool/
 │   │   ├── lib.rs          # 核心库文件，模块声明
 │   │   ├── utils/          # 一些公用的文件
 │   │   └── modules/        # 【关键】按功能模块划分的Rust代码
-│   │       └── file_ops/   # 文件操作模块
+│   │       ├── file_ops/   # 文件操作模块
+│   │       └── av_ops/     # 音视频操作模块
 │   ├── capabilities/
 │   │   └── default.json
 │   ├── icons/              # 应用图标

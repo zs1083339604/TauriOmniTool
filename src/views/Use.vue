@@ -1,10 +1,10 @@
 <script setup lang="ts">
-    import { ref, computed, onMounted, watch, markRaw } from 'vue'
+    import { ref, computed, onMounted, watch, markRaw, reactive } from 'vue'
     import { useRoute, useRouter } from 'vue-router'
-    import { useCapabilityStore } from '@/stores/capability'
-    import { Back, Setting, Key, Unlock } from '@element-plus/icons-vue'
+    import { useCapabilityStore } from '../stores/capability'
+    import { Back, Setting, Key, Unlock, Star, StarFilled } from '@element-plus/icons-vue'
     import { error as errorLog } from '@tauri-apps/plugin-log'
-    import { formatObjectString } from '@/utils/function'
+    import { formatObjectString } from '../utils/function'
     import ShortcutCapture from '../components/common/Shortcut.vue'
     import { ElMessage } from 'element-plus'
     import { useShortcutStore } from '../stores/shortcut'
@@ -29,6 +29,25 @@
         return route.query.shortcut === 'true'
     })
 
+    // 文件选择默认列表
+    const selectFile = ref([]);
+
+    // 文件是否选择完成，要加载组件了
+    const isLoadComponent = ref(false);
+
+    // 功能文件选择的默认配置对象
+    const defaultFileSelectOption = reactive({
+        selectData: 'file',
+        allowedExtensions: '*',
+        multiple: true,
+        maxFiles: 0,
+    });
+
+    // 文件选择器的ref
+    const fileSelectRef = ref(null);
+    // 已经选择的文件，用于传值到热组件
+    const selectedFiles = ref([]);
+
     // 动态加载组件
     const loadComponent = async () => {
         try {
@@ -44,12 +63,28 @@
 
             // 获取快捷键信息
             currentShortcut.value = shortcutStore.getKeyByCapabilityId(capabilityId);
+
+            // 判断是否是快捷键进来的
+            if(route.query.shortcut == 'true'){
+                const data = JSON.parse(localStorage.getItem("shortcutData"));
+                if(data.code == 200){
+                    selectFile.value.length = 0;
+                    data.data.forEach(item => {
+                        selectFile.value.push(item);
+                    });
+                }else{
+                    ElMessage.warning("无法获取选中文件：" + data.msg);
+                }
+            }
             
             // 动态导入组件
             const module = await import(
                 /* @vite-ignore */
                 `../components/modules/${currentCapability.value.component}`
             )
+
+            // 加载完成后，将此ID添加到最近使用
+            capabilityStore.addCapabilityByRecently(capabilityId);
             
             dynamicComponent.value = markRaw(module.default || module)
         } catch (err) {
@@ -66,6 +101,7 @@
     const componentProps = computed(() => ({
         capabilityId: currentCapability.value.id,
         shortcut: shortcut.value,
+        fileList: selectedFiles.value
     }))
 
     // 监听路由变化
@@ -112,6 +148,33 @@
             })
         }
     }
+
+    // 收藏或取消收藏 
+    const handleStarClick = () => {
+        capabilityStore.switchCapabilityStarTypeById(currentCapability.value.id).then((msg)=>{
+            ElMessage.success(msg);
+        }).catch((error)=>{
+            ElMessage.warning(error);
+        })
+    }
+
+    // 下一步的点击
+    const nextStep = ()=>{
+        if(fileSelectRef.value){
+            const list = fileSelectRef.value.fileList;
+            if(list.length == 0){
+                ElMessage.warning("请至少选择1个文件");
+                return;
+            }
+            selectedFiles.value.length = 0;
+            list.forEach(item => {
+                selectedFiles.value.push(item);
+            });
+            isLoadComponent.value = true
+        }else{
+            ElMessage.error("无法获取到文件选择器的Ref")
+        }
+    }
 </script>
 
 <template>
@@ -128,6 +191,17 @@
 
             <!-- 快捷键及设置信息 -->
             <div class="shortcut-info">
+                <!-- 收藏 -->
+                <template v-if="currentCapability">
+                    <el-tooltip content="收藏" v-if="!capabilityStore.isStarByCapabilityID(currentCapability.id)">
+                        <el-button type="success" :icon="Star" circle @click="handleStarClick"/>
+                    </el-tooltip>
+                    <el-tooltip content="取消收藏" v-else>
+                        <el-button type="warning" :icon="StarFilled" circle @click="handleStarClick"/>
+                    </el-tooltip>
+                </template>
+                
+
                 <!-- 解绑快捷键 -->
                 <template v-if="currentShortcut">
                     <el-tooltip content="解除快捷键绑定">
@@ -171,24 +245,58 @@
             </div>
         </div>
 
-        <Fileselect />
+        <!-- 加载框 -->
+        <template v-if="loading">
+            <div class="loading">加载中...</div>
+        </template>
+        <!-- 加载、完成或失败 -->
+        <template v-else>
+            <!-- 加载出错 -->
+            <template v-if="error">
+                <div class="error">加载组件时出错: {{ error }}</div>
+            </template>
+            <!-- 加载成功 -->
+            <template v-else>
+                <!-- 点击下一步之前 -->
+                <template v-if="!isLoadComponent">
+                    <Fileselect 
+                        ref="fileSelectRef"
+                        :defaultFiles="selectFile" 
+                        class="file-select-box"
+                        :allowedExtensions = "currentCapability && currentCapability.allowedExtensions ? currentCapability.allowedExtensions : defaultFileSelectOption.allowedExtensions"
+                        :multiple = "currentCapability && currentCapability.multiple ? currentCapability.multiple : defaultFileSelectOption.multiple"
+                        :directory = "currentCapability && currentCapability.selectData ? currentCapability.selectData == 'directory' : defaultFileSelectOption.selectData == 'directory'"
+                        :maxFiles = "currentCapability && currentCapability.maxFiles ? currentCapability.maxFiles : defaultFileSelectOption.maxFiles"
+                    />
+                    <el-button type="primary" @click="nextStep">下一步</el-button>
+                </template>
+                <!-- 点击下一步后 -->
+                <template v-else>
+                    <component 
+                        class="component-box"
+                        :is="dynamicComponent" 
+                        v-bind="componentProps"
+                    />
+                </template>
+            </template>
+        </template>
 
+        <!-- 快捷键 -->
         <ShortcutCapture
             ref="shortcutCaptureRef"
             @shortcut-captured="handleShortcutCaptured"
-        />
-        
-        <div v-if="loading" class="loading">加载中...</div>
-        <div v-else-if="error" class="error">加载组件时出错: {{ error }}</div>
-        <component 
-            v-else 
-            :is="dynamicComponent" 
-            v-bind="componentProps"
         />
     </div>
 </template>
 
 <style scoped>
+    .use-box{
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        height: 100%;
+    }
+
     .use-breadcrumb-box {
         width: 100%;
         margin-bottom: 20px;
@@ -281,5 +389,14 @@
 
     .error {
         color: #f56c6c;
+    }
+
+    .file-select-box{
+        flex-grow: 1;
+        margin-bottom: 15px;
+    }
+
+    .component-box{
+        flex-grow: 1;
     }
 </style>

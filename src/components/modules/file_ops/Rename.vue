@@ -10,6 +10,10 @@
         shortcut: {
             type: Boolean,
             default: false
+        },
+        fileList: {
+            type: Array,
+            required: true
         }
     })
 
@@ -17,6 +21,7 @@
     console.log('组件接收到的参数:')
     console.log('能力项:', props.capabilityId)
     console.log('快捷模式:', props.shortcut)
+    console.log('文件列表:', props.fileList)
 </script>
 
 <template>

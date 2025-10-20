@@ -2,15 +2,17 @@
     // 拖拽获取真实文件路径的代码参考自，稀土掘金-阿阳热爱前端：https://juejin.cn/post/7504915376901455935
 
     import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow'
-    import { onMounted, ref, useTemplateRef, onUnmounted } from 'vue'
+    import { onMounted, ref, useTemplateRef, onUnmounted, watch } from 'vue'
     import { Delete, Document, UploadFilled } from '@element-plus/icons-vue'
     import { ElMessage } from 'element-plus'
-    import { formatObjectString } from '../../utils/function'
+    import { formatObjectString, getFileNameByWindows } from '../../utils/function'
     import { error as errorLog } from '@tauri-apps/plugin-log'
     import { open } from '@tauri-apps/plugin-dialog';
     import { invoke } from '@tauri-apps/api/core'
 
     const props = defineProps({
+        // 默认文件
+        defaultFiles: {type: Array, default: []},
         // 允许的文件扩展名
         allowedExtensions: {type: String, default: "*"},
         // 是否允许多选
@@ -45,61 +47,95 @@
 
     // 添加文件
     const addFiles = (paths) => {
-        const { valid, invalid } = filterFilesByExtension(paths)
-  
-        // 记录被拒绝的文件
-        if (invalid.length > 0) {
-            rejectedFiles.value = [...rejectedFiles.value, ...invalid]
-        }
+        // 筛选出哪些路径是文件、哪些路径是文件夹
+        invoke('files_or_directory', {paths: paths}).then((result)=>{
+            const { files, folders } = result.data;
+            let pathsVal = files;
 
-        // 添加有效文件（包含重复检测）
-        const newFiles = valid.filter(path => 
-            !fileList.value.includes(path)
-        )
-        
-        if (newFiles.length > 0) {
-            let isAdd = true;
-            // 判断是否是多选
-            if(props.multiple){
-                // 判断文件的数量是否达到限制
-                const fileCount = fileList.value.length + newFiles.length;
-                // 计算差值
-                const diffCount = props.maxFiles === 0 ? false : props.maxFiles - fileCount;
-                if(diffCount !== false){
-                    if(fileList.value.length === props.maxFiles){
-                        // 文件数量已经达到了限制，禁止添加，并提示用户
+            if(props.directory){
+                // 如果是文件夹
+                paths = folders;
+                if(paths.length == 0 && files.length != 0){
+                    // 允许的是文件夹，但拖入的是文件
+                    ElMessage.warning("允许的是文件夹，而非文件");
+                }else if(files.length != 0){
+                    ElMessage.warning({
+                        dangerouslyUseHTMLString: true,
+                        message: `${files.length} 个文件未添加: <br />${files.join('<br />')}`
+                    })
+                }
+            }else{
+                if(paths.length == 0 && folders.length != 0){
+                    // 允许的是文件，但拖入的文件夹
+                    ElMessage.warning("允许的是文件，而非文件夹");
+                }else if(folders.length != 0){
+                    ElMessage.warning({
+                        dangerouslyUseHTMLString: true,
+                        message: `${folders.length} 个文件未添加: <br />${folders.join('<br />')}`
+                    })
+                }
+            }
+
+            const { valid, invalid } = filterFilesByExtension(pathsVal)
+  
+            // 记录被拒绝的文件
+            if (invalid.length > 0) {
+                rejectedFiles.value = [...rejectedFiles.value, ...invalid]
+            }
+
+            // 添加有效文件（包含重复检测）
+            const newFiles = valid.filter(path => 
+                !fileList.value.includes(path)
+            )
+            
+            if (newFiles.length > 0) {
+                let isAdd = true;
+                // 判断是否是多选
+                if(props.multiple){
+                    // 判断文件的数量是否达到限制
+                    const fileCount = fileList.value.length + newFiles.length;
+                    // 计算差值
+                    const diffCount = props.maxFiles === 0 ? false : props.maxFiles - fileCount;
+                    if(diffCount !== false){
+                        if(fileList.value.length === props.maxFiles){
+                            // 文件数量已经达到了限制，禁止添加，并提示用户
+                            isAdd = false;
+                        }else if(diffCount < 0){
+                            // 如果有文件数量的限制，判断数量是否到了限制
+                            // 到了限制，限制newFiles的length
+                            newFiles.length = newFiles.length + diffCount;
+                        }
+                    }
+                }else{
+                    // 如果不是多选
+                    // 判断是否有文件了
+                    if(fileList.value.length >= 1){
                         isAdd = false;
-                    }else if(diffCount < 0){
-                        // 如果有文件数量的限制，判断数量是否到了限制
-                        // 到了限制，限制newFiles的length
-                        newFiles.length = newFiles.length + diffCount;
+                    }else{
+                        // 如果不是多选并且列表中没有文件，newFiles的length只能为1，否则拖拽还是会添加多个文件
+                        newFiles.length = 1;
                     }
                 }
-            }else{
-                // 如果不是多选
-                // 判断是否有文件了
-                if(fileList.value.length >= 1){
-                    isAdd = false;
+
+                if(isAdd){
+                    fileList.value = [...fileList.value, ...newFiles]
+                    ElMessage.success(`成功添加 ${newFiles.length} 个文件`)
                 }else{
-                    // 如果不是多选并且列表中没有文件，newFiles的length只能为1，否则拖拽还是会添加多个文件
-                    newFiles.length = 1;
+                    ElMessage.warning('文件数量已达上限')
                 }
             }
 
-            if(isAdd){
-                fileList.value = [...fileList.value, ...newFiles]
-                ElMessage.success(`成功添加 ${newFiles.length} 个文件`)
-            }else{
-                ElMessage.warning('文件数量已达上限')
+            // 如果有被拒绝的文件，显示提示
+            if (invalid.length > 0) {
+                showRejectedFilesAlert(invalid);
+            } else if (pathsVal.length > 0 && newFiles.length === 0) {
+                ElMessage.warning('文件已存在列表中')
             }
-        }
-
-        // 如果有被拒绝的文件，显示提示
-        if (invalid.length > 0) {
-            showRejectedFilesAlert(invalid);
-        } else if (paths.length > 0 && newFiles.length === 0) {
-            ElMessage.warning('文件已存在列表中')
-        }
+        }).catch((error)=>{
+            const info = formatObjectString("拖拽添加文件失败：", error);
+            ElMessage.error(info);
+            errorLog(info);
+        });
     }
 
     // 移除全部
@@ -148,7 +184,6 @@
     // 点击选择文件
     const clickSelectFiles = async ()=>{
         try {
-            console.log(props.allowedExtensions.split(","))
             let files = await open({
                 title: props.directory ? '选择文件夹' : '选择文件',
                 multiple: props.multiple,
@@ -172,6 +207,13 @@
         
     }
 
+    watch(props.defaultFiles, (val)=>{
+        // 添加默认文件
+        if(val.length > 0){
+            addFiles(val);
+        }
+    }, {immediate: true})
+
     onMounted(() => {
         getCurrentWebviewWindow().onDragDropEvent(({ payload }) => {
             const { type } = payload;
@@ -189,42 +231,8 @@
                 }
             } else if (type === 'drop' && dragenter.value) {
                 dragenter.value = false
-                // 只在拖拽这里判断文件或文件夹就行，点击选择是弹出的对话框，不会出现要求文件，却选择了文件夹的情况，以后遇到的话在转移
-                invoke('files_or_directory', {paths: payload.paths}).then((result)=>{
-                    const { files, folders } = result.data;
-                    let paths = files;
+                addFiles(payload.paths || []);
 
-                    if(props.directory){
-                        // 如果是文件夹
-                        paths = folders;
-                        if(paths.length == 0 && files.length != 0){
-                            // 允许的是文件夹，但拖入的是文件
-                            ElMessage.warning("请将文件夹拖入此处，而非文件");
-                        }else if(files.length != 0){
-                            ElMessage.warning({
-                                dangerouslyUseHTMLString: true,
-                                message: `${files.length} 个文件未添加: <br />${files.join('<br />')}`
-                            })
-                        }
-                    }else{
-                        if(paths.length == 0 && folders.length != 0){
-                            // 允许的是文件，但拖入的文件夹
-                            ElMessage.warning("请将文件拖入此处，而非文件夹");
-                        }else if(folders.length != 0){
-                            ElMessage.warning({
-                                dangerouslyUseHTMLString: true,
-                                message: `${folders.length} 个文件未添加: <br />${folders.join('<br />')}`
-                            })
-                        }
-                    }
-
-                    addFiles(paths || [])
-                }).catch((error)=>{
-                    const info = formatObjectString("拖拽添加文件失败：", error);
-                    ElMessage.error(info);
-                    errorLog(info);
-                });
-                
             } else {
                 dragenter.value = false
             }
@@ -244,11 +252,6 @@
         }
     })
 
-    // 格式化文件名（提取文件名）
-    const getFileName = (path) => {
-        return path.split(/[\\/]/).pop() || path
-    }
-
     // 格式化显示路径（中间省略）
     const formatPath = (path, maxLength = 30) => {
         if (path.length <= maxLength) return path
@@ -256,6 +259,10 @@
         const half = Math.floor(maxLength / 2) - 2
         return path.substring(0, half) + '...' + path.substring(path.length - half)
     }
+
+    defineExpose({
+        fileList
+    })
 </script>
 
 <template>
@@ -290,8 +297,8 @@
                             <Document />
                         </el-icon>
                         <div class="file-info">
-                            <div class="file-name" :title="getFileName(filePath)">
-                                {{ getFileName(filePath) }}
+                            <div class="file-name" :title="getFileNameByWindows(filePath)">
+                                {{ getFileNameByWindows(filePath) }}
                             </div>
                             <div class="file-path" :title="filePath">
                                 {{ formatPath(filePath) }}

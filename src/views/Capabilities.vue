@@ -1,7 +1,8 @@
 <script setup lang="ts">
     import { ref } from 'vue';
-    import { useCapabilityStore } from '@/stores/capability';
-    import mitter from '@/utils/mitt'
+    import { useCapabilityStore } from '../stores/capability';
+    import mitter from '../utils/mitt'
+import { ElMessage } from 'element-plus';
 
     const capabilityStore = useCapabilityStore();
 
@@ -28,6 +29,14 @@
 
     const selectCapability = (id) => {
         mitter.emit('capabilitySkip', {id: id})
+    }
+
+    const handleStarClick = (id) => {
+        capabilityStore.switchCapabilityStarTypeById(id).then((msg)=>{
+            ElMessage.success(msg);
+        }).catch((error)=>{
+            ElMessage.warning(error);
+        })
     }
 
     reloadCapabilityList();
@@ -66,6 +75,12 @@
                 </div>
                 <div class="tool-footer">
                     <button class="tool-action">立即使用</button>
+                    <template v-if="capabilityStore.isStarByCapabilityID(item.id)">
+                        <button class="tool-status unStar" @click.stop="handleStarClick(item.id)"><el-icon><StarFilled /></el-icon>&nbsp;取消收藏</button>
+                    </template>
+                    <template v-else>
+                        <button class="tool-status star" @click.stop="handleStarClick(item.id)"><el-icon><Star /></el-icon>&nbsp;收藏</button>
+                    </template>
                 </div>
             </div>
         </div>
@@ -199,14 +214,17 @@
         border-radius: 12px;
         background: #e8f4fd;
         color: #3498db;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
     }
 
-    .tool-status.free {
+    .tool-status.star {
         background: #e8f6f3;
         color: #2ecc71;
     }
 
-    .tool-status.hot {
+    .tool-status.unStar {
         background: #fdedec;
         color: #e74c3c;
     }

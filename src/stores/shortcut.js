@@ -1,10 +1,12 @@
 import { defineStore } from "pinia";
 import { select, insert, update, deleteData } from '../utils/sqlite'
 import { error as errorLog, warn } from "@tauri-apps/plugin-log";
-import { formatObjectString } from '../utils/function'
+import { formatObjectString, getCurrentDateTime } from '../utils/function'
 import { register, unregister, isRegistered } from '@tauri-apps/plugin-global-shortcut';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import mitter from "../utils/mitt";
+import { invoke } from "@tauri-apps/api/core";
+import { message } from '@tauri-apps/plugin-dialog';
 
 export const useShortcutStore = defineStore("shortcut", {
     actions: {
@@ -33,10 +35,21 @@ export const useShortcutStore = defineStore("shortcut", {
          */
         bindBaseFn(event, capabilityId){
             if (event.state === "Pressed") {
-                this.currentWindow.setFocus().catch((error)=>{
+                invoke("get_active_explorer_select_files").then((result)=>{
+                    localStorage.setItem("shortcutData", JSON.stringify(result));
+                    return this.currentWindow.setFocus();
+                }).then(()=>{
+                    mitter.emit('capabilitySkip', {id: capabilityId, shortcut: true})
+                }).catch((error)=>{
+                    const info = formatObjectString("快捷键调用出错：", error);
+                    errorLog(info);
+                    message(info, { title: '错误', kind: 'error' }).catch((error)=>{
+                        const info = formatObjectString("对话框出错", error);
+                        errorLog(info);
+                        console.log("对话框出错" , error);
+                    })
                     console.log(error);
                 })
-                mitter.emit('capabilitySkip', {id: capabilityId, shortcut: true})
             }
         },
         /**
@@ -99,7 +112,7 @@ export const useShortcutStore = defineStore("shortcut", {
                             await unregister(findItem.key);
                         }
                         // 修改数据库信息
-                        await update('shortcut', {key: key}, 'id = ?', [findItem.id]);
+                        await update('shortcut', {key: key, createTime: getCurrentDateTime()}, 'id = ?', [findItem.id]);
                         // 赋值
                         this.list[findIndex].key = key;
                     }else{
