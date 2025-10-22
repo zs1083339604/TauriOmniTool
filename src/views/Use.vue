@@ -9,12 +9,14 @@
     import { ElMessage } from 'element-plus'
     import { useShortcutStore } from '../stores/shortcut'
     import Fileselect from '../components/common/Fileselect.vue'
+    import { useOptionsStore } from '../stores/options'
     
     const route = useRoute()
     const router = useRouter();
 
     const capabilityStore = useCapabilityStore();
     const shortcutStore = useShortcutStore();
+    const optionsStore = useOptionsStore();
 
     const loading = ref(true)
     const error = ref(null)
@@ -23,6 +25,12 @@
     const shortcutCaptureRef = ref(null)
     // 当前快捷键
     const currentShortcut = ref(null);
+    // 是否自动下一步
+    const isAutoNext = ref(false);
+    const softNextRuleOption = optionsStore.getOptionByKey("softNextRule");
+    if(softNextRuleOption.index != -1 && softNextRuleOption.data.val == 'auto'){
+        isAutoNext.value = true;
+    }
 
     // 获取查询参数
     const shortcut = computed(() => {
@@ -158,6 +166,13 @@
         })
     }
 
+    // 文件添加成功
+    const handleFileAdded = ()=>{
+        if(isAutoNext.value){
+            nextStep();
+        }
+    }
+
     // 下一步的点击
     const nextStep = ()=>{
         if(fileSelectRef.value){
@@ -267,8 +282,9 @@
                         :multiple = "currentCapability && currentCapability.multiple ? currentCapability.multiple : defaultFileSelectOption.multiple"
                         :directory = "currentCapability && currentCapability.selectData ? currentCapability.selectData == 'directory' : defaultFileSelectOption.selectData == 'directory'"
                         :maxFiles = "currentCapability && currentCapability.maxFiles ? currentCapability.maxFiles : defaultFileSelectOption.maxFiles"
+                        @fileAdded="handleFileAdded"
                     />
-                    <el-button type="primary" @click="nextStep">下一步</el-button>
+                    <el-button v-if="!isAutoNext" type="primary" @click="nextStep">下一步</el-button>
                 </template>
                 <!-- 点击下一步后 -->
                 <template v-else>

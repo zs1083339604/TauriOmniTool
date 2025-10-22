@@ -2,6 +2,8 @@ use crate::utils::custom_result::CustomResult;
 use scopeguard::defer;
 use serde_json::json;
 use std::path::Path;
+use std::collections::HashMap;
+use std::time::Duration;
 use tauri_plugin_log::log::warn;
 use windows::core::Interface;
 use windows::Win32::System::Com::{
@@ -17,6 +19,25 @@ use windows::Win32::{
         WindowsAndMessaging::GetForegroundWindow,
     },
 };
+use serde::{Deserialize, Serialize};
+use tauri::Url;
+
+/// API 请求配置结构体
+///
+/// 用于封装 HTTP 请求的所有必要参数，支持代理配置和自定义请求头
+#[derive(Deserialize, Serialize)]
+pub struct ApiRequest {
+    /// 请求的目标 URL
+    pub url: String,
+    /// HTTP 方法（GET、POST 等）
+    pub method: String,
+    /// 自定义请求头，键值对形式
+    pub headers: HashMap<String, String>,
+    /// 请求体数据，JSON 格式
+    pub body: serde_json::Value,
+    /// 代理服务器配置，格式：http://host:port 或 socks5://host:port
+    pub proxy: Option<String>,
+}
 
 /// 文件类型分类命令
 ///
@@ -255,27 +276,6 @@ use tauri_plugin_http::{
         ClientBuilder, Proxy,
     }
 };
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::time::Duration;
-use tauri::Url;
-
-/// API 请求配置结构体
-///
-/// 用于封装 HTTP 请求的所有必要参数，支持代理配置和自定义请求头
-#[derive(Deserialize, Serialize)]
-pub struct ApiRequest {
-    /// 请求的目标 URL
-    pub url: String,
-    /// HTTP 方法（GET、POST 等）
-    pub method: String,
-    /// 自定义请求头，键值对形式
-    pub headers: HashMap<String, String>,
-    /// 请求体数据，JSON 格式
-    pub body: serde_json::Value,
-    /// 代理服务器配置，格式：http://host:port 或 socks5://host:port
-    pub proxy: Option<String>,
-}
 
 /// 发送 HTTP API 请求的命令函数
 ///
@@ -298,8 +298,8 @@ pub struct ApiRequest {
 /// 6. 发送请求并处理响应
 ///
 /// # 支持的代理协议
-/// * HTTP 代理：http://host:port
-/// * HTTPS 代理：https://host:port  
+/// * HTTP 代理：http://user:pass@host:port
+/// * HTTPS 代理：https://user:pass@host:port  
 /// * SOCKS5 代理：socks5://host:port
 ///
 /// # 支持的 HTTP 方法
@@ -332,6 +332,7 @@ pub async fn send_api_request(request: ApiRequest) -> Result<CustomResult, Custo
                     || proxy_url.scheme() == "https"
                     || proxy_url.scheme() == "socks5"
                 {
+                    println!("aaa");
                     let proxy = Proxy::all(proxy_url_str).map_err(|e| {
                         CustomResult::error(Some(format!("添加代理失败：{}", e)), None)
                     })?;

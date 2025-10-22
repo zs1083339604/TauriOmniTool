@@ -29,6 +29,8 @@
         }
     });
 
+    const emit = defineEmits(['fileAdded']);
+
     // 拖放区域的引用
     const dropRef = useTemplateRef('drop');
     // 是否允许拖放
@@ -131,6 +133,8 @@
             } else if (pathsVal.length > 0 && newFiles.length === 0) {
                 ElMessage.warning('文件已存在列表中')
             }
+
+            emit("fileAdded");
         }).catch((error)=>{
             const info = formatObjectString("拖拽添加文件失败：", error);
             ElMessage.error(info);

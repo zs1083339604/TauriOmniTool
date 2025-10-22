@@ -17,9 +17,11 @@ import { useCapabilityStore } from "./stores/capability";
 import mitter from './utils/mitt';
 import { useRouter } from "vue-router";
 import { useShortcutStore } from "./stores/shortcut";
+import { useOptionsStore } from "./stores/options";
 
 const capabilityStore = useCapabilityStore();
 const shortcutStore = useShortcutStore();
+const optionsStore = useOptionsStore();
 
 const router = useRouter();
 const currentWindow = getCurrentWindow();
@@ -33,6 +35,8 @@ connect().then(()=>{
   return capabilityStore.init();
 }).then(()=>{
   return shortcutStore.init();
+}).then(()=>{
+  return optionsStore.init();
 }).then(()=>{
   console.log("程序初始化完成");
   isInit.value = true;
@@ -85,7 +89,7 @@ onUnmounted(()=>{
             <el-icon><icon-menu /></el-icon>
             <span>功能库</span>
           </el-menu-item>
-          <el-menu-item index="/setting">
+          <el-menu-item index="/options">
             <el-icon><setting /></el-icon>
             <span>通用设置</span>
           </el-menu-item>

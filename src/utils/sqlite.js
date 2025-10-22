@@ -36,6 +36,22 @@ const databseTable = [
             { name: 'key', type: 'TEXT', notNull: true, unique: true },
             { name: 'createTime', type: 'TEXT', defaultValue: "datetime('now', 'localtime')" }
         ]
+    },{
+        // 设置
+        name: 'options',
+        columns: [
+            { name: 'id', type: 'INTEGER', primaryKey: true, autoIncrement: true, notNull: true },
+            // 功能ID，如果为0 代表是通用设置
+            { name: 'capabilityID', type: 'INTEGER', notNull: true },
+            // 设置的key
+            { name: 'key', type: 'TEXT', notNull: true, unique: true },
+            // 设置key所对应的值
+            { name: 'val', type: 'TEXT', notNull: true },
+            // 备注 或 附加信息
+            { name: 'remake', type: 'TEXT' },
+            // 上次更新时间
+            { name: 'lastTime', type: 'TEXT', defaultValue: "datetime('now', 'localtime')" }
+        ]
     }
 ];
 

@@ -3,7 +3,7 @@ use tauri::Manager;
 // 引入日志文件
 use tauri_plugin_log::{Target, TargetKind};
 mod utils;
-use utils::api::{files_or_directory, get_active_explorer_select_files};
+use utils::api::{files_or_directory, get_active_explorer_select_files, send_api_request};
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -42,7 +42,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             greet,
             files_or_directory,
-            get_active_explorer_select_files
+            get_active_explorer_select_files,
+            send_api_request
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
