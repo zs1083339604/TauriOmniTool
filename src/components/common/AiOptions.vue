@@ -270,7 +270,7 @@
             <el-radio-group v-model="optionObj.selectedAiPlatform" @change="refreshOptionAndModelList">
                 <el-radio-button value="ChatGLM">ChatGLM</el-radio-button>
                 <el-radio-button value="DeepSeek">DeepSeek</el-radio-button>
-                <el-radio-button value="Groq">Groq(免费)</el-radio-button>
+                <el-radio-button value="Groq">Groq(部分免费)</el-radio-button>
                 <el-radio-button value="Google">Google(免费)</el-radio-button>
                 <el-radio-button value="ChatGPT">ChatGPT</el-radio-button>
             </el-radio-group>

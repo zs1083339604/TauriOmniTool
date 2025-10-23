@@ -36,7 +36,7 @@ const useAiChat = () => {
      * @param {string} model 模型名称 (如 "glm-4", "glm-4-plus")
      * @param {string} apiKey API 密钥
      * @param {string} [proxy] 可选的代理地址 (如 "http://user:pass@host:port" 或 "socks5://user:pass@host:port")
-     * @returns {Promise<{success: boolean, data?: string, error?: string}>} AI 模型输出或错误信息
+     * @returns {Promise<string>} AI 模型输出或错误信息
      */
     const chatGLM = (prompt, model, apiKey, proxy) => {
         return new Promise((resolve, reject) => {
@@ -84,7 +84,7 @@ const useAiChat = () => {
      * @param {string} model 模型名称 (如 "deepseek-chat", "deepseek-reasoner")
      * @param {string} apiKey API 密钥
      * @param {string} [proxy] 可选的代理地址
-     * @returns {Promise<{success: boolean, data?: string, error?: string}>} AI 模型输出或错误信息
+     * @returns {Promise<string>} AI 模型输出或错误信息
      */
     const deepSeek = (prompt, model, apiKey, proxy) => {
         return new Promise((resolve, reject) => {
@@ -129,7 +129,7 @@ const useAiChat = () => {
      * @param {string} model 模型名称 (如 "llama3-8b-8192", "llama3-70b-8192")
      * @param {string} apiKey API 密钥
      * @param {string} [proxy] 可选的代理地址
-     * @returns {Promise<{success: boolean, data?: string, error?: string}>} AI 模型输出或错误信息
+     * @returns {Promise<string>} AI 模型输出或错误信息
      */
     const groq = (prompt, model, apiKey, proxy) => {
         return new Promise((resolve, reject) => {
@@ -170,7 +170,7 @@ const useAiChat = () => {
      * @param {string} model 模型名称 (如 "gemini-1.5-flash", "gemini-1.5-pro")
      * @param {string} apiKey API 密钥
      * @param {string} [proxy] 可选的代理地址
-     * @returns {Promise<{success: boolean, data?: string, error?: string}>} AI 模型输出或错误信息
+     * @returns {Promise<string>} AI 模型输出或错误信息
      */
     const google = (prompt, model, apiKey, proxy) => {
         return new Promise((resolve, reject) => {
@@ -240,7 +240,7 @@ const useAiChat = () => {
      * @param {string} model 模型名称 (如 "gpt-4.1", "gpt-3.5-turbo-0125")
      * @param {string} apiKey API 密钥
      * @param {string} [proxy] 可选的代理地址
-     * @returns {Promise<{success: boolean, data?: string, error?: string}>} AI 模型输出或错误信息
+     * @returns {Promise<string>} AI 模型输出或错误信息
      */
     const chatGPT = (prompt, model, apiKey, proxy) => {
         return new Promise((resolve, reject) => {
